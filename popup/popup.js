@@ -118,6 +118,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // ── Summarize ──────────────────────────────────────────────
+  const sumBtn = document.getElementById('summarize-btn');
+  const sumStatus = document.getElementById('sum-status');
+
+  sumBtn.addEventListener('click', async () => {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tabs[0]?.url?.includes('linkedin.com')) {
+      sumStatus.style.display = 'block';
+      sumStatus.textContent = 'Navigate to LinkedIn first';
+      setTimeout(() => { sumStatus.style.display = 'none'; }, 2000);
+      return;
+    }
+
+    sumBtn.disabled = true;
+    sumBtn.textContent = 'Scrolling...';
+    sumStatus.style.display = 'block';
+    sumStatus.textContent = 'Scrolling and capturing feed...';
+
+    // Listen for progress updates
+    const progressListener = (message) => {
+      if (message.type === 'SUM_PROGRESS') {
+        sumStatus.textContent = message.status;
+      }
+      if (message.type === 'SUM_DONE') {
+        sumBtn.disabled = false;
+        sumBtn.textContent = 'Sum';
+        sumStatus.textContent = 'Done — opened in new tab';
+        setTimeout(() => { sumStatus.style.display = 'none'; }, 3000);
+        chrome.runtime.onMessage.removeListener(progressListener);
+      }
+      if (message.type === 'SUM_ERROR') {
+        sumBtn.disabled = false;
+        sumBtn.textContent = 'Sum';
+        sumStatus.textContent = 'Error: ' + message.error;
+        setTimeout(() => { sumStatus.style.display = 'none'; }, 5000);
+        chrome.runtime.onMessage.removeListener(progressListener);
+      }
+    };
+    chrome.runtime.onMessage.addListener(progressListener);
+
+    chrome.runtime.sendMessage({
+      type: 'SUMMARIZE_PAGE',
+      tabId: tabs[0].id
+    });
+  });
+
   // ── Clear Logs ──────────────────────────────────────────────
   clearLogsBtn.addEventListener('click', async () => {
     await chrome.storage.local.set({ recent_errors: [] });

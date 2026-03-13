@@ -46,6 +46,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case 'CLEAR_ALL_RULES':
       handleClearAllRules(message.tabId, sendResponse);
       return true;
+
+    case 'SUMMARIZE_PAGE':
+      handleSummarizePage(message.tabId);
+      sendResponse({ ack: true });
+      break;
   }
 
   return false;
@@ -249,6 +254,150 @@ async function handleGetAllStats(sendResponse) {
     tokensUsed,
     estimatedCost: estimatedCost.toFixed(4)
   });
+}
+
+// ── Summarize Page ────────────────────────────────────────────
+async function handleSummarizePage(tabId) {
+  const apiKey = await Storage.getApiKey();
+  if (!apiKey) {
+    broadcastToPopup({ type: 'SUM_ERROR', error: 'No API key set' });
+    return;
+  }
+
+  try {
+    const MAX_SCROLLS = 25;
+    const SCREENSHOT_EVERY = 3; // take screenshot every 3rd scroll
+    const screenshots = [];
+    const allPosts = [];
+    const seenTexts = new Set();
+
+    // Scroll to top first
+    await sendToContentScript(tabId, { type: 'SCROLL_TO_TOP' });
+    await sleep(500);
+
+    for (let i = 0; i < MAX_SCROLLS; i++) {
+      broadcastToPopup({ type: 'SUM_PROGRESS', status: `Scrolling... ${i + 1}/${MAX_SCROLLS}` });
+
+      // Capture screenshot every Nth scroll
+      if (i % SCREENSHOT_EVERY === 0) {
+        const screenshot = await captureScreenshot(tabId);
+        if (screenshot) screenshots.push(screenshot);
+      }
+
+      // Get visible post data
+      const postData = await sendToContentScript(tabId, { type: 'GET_VISIBLE_POSTS' });
+      if (postData?.posts) {
+        for (const post of postData.posts) {
+          const key = post.text.slice(0, 100);
+          if (!seenTexts.has(key)) {
+            seenTexts.add(key);
+            allPosts.push(post);
+          }
+        }
+      }
+
+      // Scroll down
+      const scrollResult = await sendToContentScript(tabId, { type: 'SCROLL_DOWN' });
+      if (scrollResult?.atBottom) break;
+    }
+
+    // Scroll back to top
+    await sendToContentScript(tabId, { type: 'SCROLL_TO_TOP' });
+
+    broadcastToPopup({ type: 'SUM_PROGRESS', status: `Summarizing ${allPosts.length} posts with Claude...` });
+
+    // Build the prompt
+    const postText = allPosts.map((p, i) => {
+      let entry = `[${i + 1}] ${p.author ? p.author + ': ' : ''}${p.text}`;
+      if (p.links.length > 0) {
+        entry += '\n    Links: ' + p.links.map(l => l.href).join(', ');
+      }
+      if (p.likes || p.comments) {
+        entry += `\n    Engagement: ${p.likes || '0 likes'} ${p.comments || ''}`;
+      }
+      return entry;
+    }).join('\n\n');
+
+    // Build Claude message with screenshots + text
+    const content = [];
+
+    // Include up to 8 screenshots for visual context
+    const screenshotsToSend = screenshots.slice(0, 8);
+    for (const ss of screenshotsToSend) {
+      content.push({
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/png', data: ss }
+      });
+    }
+
+    content.push({
+      type: 'text',
+      text: `Summarize this LinkedIn feed. I scrolled through the page and captured ${screenshotsToSend.length} screenshots plus the text content of ${allPosts.length} posts.
+
+Here are the posts extracted from the page:
+
+${postText}
+
+Please provide:
+1. A brief overall summary of the feed themes (2-3 sentences)
+2. A list of the most interesting/notable posts with:
+   - Who posted it
+   - Key takeaway (1-2 sentences)
+   - Any relevant links
+   - Engagement level if notable
+3. Group posts by topic/theme if patterns emerge
+
+Format the output as clean HTML that can be displayed in a browser tab. Use a dark theme (background: #0f0f1a, text: #e0e0e0). Make it readable and well-structured. Include all relevant links as clickable <a> tags. Do NOT include any markdown — return only raw HTML starting with <!DOCTYPE html>.`
+    });
+
+    const API_URL = 'https://api.anthropic.com/v1/messages';
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8192,
+        messages: [{ role: 'user', content }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Claude API error ${response.status}: ${err.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    let html = data.content[0]?.text || '';
+
+    // Clean up if Claude wrapped in code fences
+    html = html.replace(/^```html?\n?/i, '').replace(/\n?```$/i, '').trim();
+
+    // Open summary in a new tab
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    // Blob URLs don't work from service workers, use a data URL instead
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    await chrome.tabs.create({ url: dataUrl });
+
+    broadcastToPopup({ type: 'SUM_DONE' });
+
+  } catch (error) {
+    console.error('[AdRemover] Summarize failed:', error);
+    broadcastToPopup({ type: 'SUM_ERROR', error: error.message });
+  }
+}
+
+function broadcastToPopup(message) {
+  chrome.runtime.sendMessage(message).catch(() => {});
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ── Rule Management ───────────────────────────────────────────

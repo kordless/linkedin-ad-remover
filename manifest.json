@@ -3,7 +3,7 @@
   "name": "LinkedIn Ad Remover",
   "version": "1.0.0",
   "description": "Claude-powered intelligent ad removal for LinkedIn",
-  "permissions": ["storage", "activeTab", "scripting", "alarms"],
+  "permissions": ["storage", "activeTab", "scripting", "alarms", "tabs"],
   "host_permissions": ["https://www.linkedin.com/*"],
   "background": {
     "service_worker": "background/service-worker.js"

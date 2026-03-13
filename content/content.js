@@ -283,10 +283,93 @@
         sendResponse({ success: true });
         break;
       }
+
+      case 'SCROLL_DOWN': {
+        window.scrollBy(0, window.innerHeight * 0.85);
+        // Wait for content to load
+        setTimeout(() => {
+          sendResponse({
+            scrollY: window.scrollY,
+            atBottom: (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 100)
+          });
+        }, 800);
+        return true; // async
+      }
+
+      case 'SCROLL_TO_TOP': {
+        window.scrollTo(0, 0);
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'GET_VISIBLE_POSTS': {
+        const posts = getVisiblePostData();
+        sendResponse({ posts });
+        break;
+      }
     }
 
     return true; // Keep message channel open for async responses
   });
+
+  // ── Post Data Extraction ─────────────────────────────────────
+  function getVisiblePostData() {
+    const posts = [];
+    const seen = new Set();
+    const candidates = document.querySelectorAll(
+      '.feed-shared-update-v2, .occludable-update, [data-urn*="activity"], [data-urn*="ugcPost"]'
+    );
+
+    candidates.forEach(post => {
+      // Skip hidden/removed posts
+      if (post.style.display === 'none' || post.dataset.adRemoverHidden) return;
+
+      const text = (post.textContent || '').trim().slice(0, 1000);
+      if (!text || text.length < 20) return;
+
+      // Deduplicate by first 100 chars
+      const key = text.slice(0, 100);
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      // Extract author
+      const authorEl = post.querySelector(
+        '.feed-shared-actor__name, .update-components-actor__name'
+      );
+      const author = authorEl ? authorEl.textContent.trim() : '';
+
+      // Extract links
+      const links = [];
+      post.querySelectorAll('a[href]').forEach(a => {
+        const href = a.href;
+        if (href && !href.includes('javascript:') && !href.startsWith('#')) {
+          const linkText = (a.textContent || '').trim().slice(0, 100);
+          if (href.includes('linkedin.com/posts/') ||
+              href.includes('linkedin.com/pulse/') ||
+              href.includes('linkedin.com/feed/update/') ||
+              (!href.includes('linkedin.com') && href.startsWith('http'))) {
+            links.push({ href, text: linkText });
+          }
+        }
+      });
+
+      // Extract engagement
+      const likeEl = post.querySelector('.social-details-social-counts__reactions-count');
+      const commentEl = post.querySelector('.social-details-social-counts__comments');
+      const likes = likeEl ? likeEl.textContent.trim() : '';
+      const comments = commentEl ? commentEl.textContent.trim() : '';
+
+      posts.push({
+        author,
+        text: text.slice(0, 800),
+        links: links.slice(0, 5),
+        likes,
+        comments
+      });
+    });
+
+    return posts;
+  }
 
   // ── SPA Navigation Detection ────────────────────────────────
   let lastUrl = window.location.href;

@@ -308,6 +308,21 @@ input[type="password"]:focus {
   background: #3a1a1e;
 }
 
+.btn-sum {
+  background: linear-gradient(135deg, #1a1a2e, #2a2a3e);
+  color: #38bdf8;
+  border: 1px solid rgba(56,189,248,0.15);
+}
+.btn-sum:hover { background: #2a2a3e; }
+.btn-sum:disabled { opacity: 0.5; }
+
+.sum-status {
+  font-size: 11px;
+  color: #888;
+  margin-top: 6px;
+  text-align: center;
+}
+
 .reset-section {
   margin-bottom: 12px;
 }
