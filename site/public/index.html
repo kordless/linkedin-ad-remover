@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn Ad Remover — AI-Powered Chrome Extension</title>
+  <meta name="description" content="Claude-powered Chrome extension that intelligently identifies and removes ads on LinkedIn. Learns from you, self-heals, and keeps your API key 100% local." />
+  <meta property="og:title" content="LinkedIn Ad Remover" />
+  <meta property="og:description" content="AI-powered ad removal for LinkedIn. Claude analyzes ads visually, learns from your clicks, and self-heals if it breaks anything." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://linkedin.nuts.services" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep: #030911;
+      --bg-card: #0a1221;
+      --bg-card-hover: #0e1a2f;
+      --border-subtle: rgba(56, 189, 248, 0.07);
+      --border-focus: rgba(56, 189, 248, 0.25);
+      --text-primary: #e2eaf3;
+      --text-secondary: #7a92ad;
+      --text-muted: #4a6380;
+      --accent-sky: #0ea5e9;
+      --accent-sky-dim: rgba(14, 165, 233, 0.12);
+      --accent-violet: #7c3aed;
+      --accent-green: #34d399;
+      --accent-red: #f87171;
+      --accent-amber: #fbbf24;
+      --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    #root { min-height: 100vh; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(56,189,248,0.3); }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .fade-up {
+      animation: fadeUp 0.6s ease-out both;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-out both;
+    }
+    .stagger-1 { animation-delay: 0.05s; }
+    .stagger-2 { animation-delay: 0.1s; }
+    .stagger-3 { animation-delay: 0.15s; }
+    .stagger-4 { animation-delay: 0.2s; }
+    .stagger-5 { animation-delay: 0.25s; }
+    .stagger-6 { animation-delay: 0.3s; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    /* Layout */
+    .page-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+      position: relative;
+    }
+
+    /* Ambient blobs */
+    .ambient {
+      position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0;
+    }
+    .ambient-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+    }
+    .blob-1 {
+      width: 500px; height: 500px; top: -100px; left: 10%;
+      background: radial-gradient(circle, rgba(14,165,233,0.07) 0%, transparent 70%);
+    }
+    .blob-2 {
+      width: 400px; height: 400px; bottom: 20%; right: 5%;
+      background: radial-gradient(circle, rgba(124,58,237,0.05) 0%, transparent 70%);
+    }
+    .blob-3 {
+      width: 300px; height: 300px; top: 50%; left: 50%;
+      background: radial-gradient(circle, rgba(14,165,233,0.04) 0%, transparent 70%);
+    }
+
+    /* Noise texture overlay */
+    .noise {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 12px; font-weight: 500;
+      background: var(--accent-sky-dim);
+      border: 1px solid rgba(14,165,233,0.15);
+      color: #38bdf8;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #38bdf8;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    /* Hero */
+    .hero { text-align: center; margin-bottom: 4rem; }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 3.4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 1.25rem 0;
+    }
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 540px;
+      margin: 0 auto 2rem;
+      line-height: 1.7;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 32px;
+      border-radius: 16px;
+      font-size: 14px; font-weight: 600;
+      font-family: var(--font-body);
+      color: #fff; border: none; cursor: pointer;
+      transition: all 0.25s ease;
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      box-shadow: 0 0 40px rgba(14,165,233,0.15), 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn-primary:hover { box-shadow: 0 0 50px rgba(14,165,233,0.25), 0 8px 20px rgba(0,0,0,0.3); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+
+    /* Section */
+    .section { margin-bottom: 4rem; }
+    .section h2 {
+      font-size: 1.5rem; font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .section .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Feature cards */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      position: relative; overflow: hidden;
+      border-radius: 16px; padding: 28px;
+      background: linear-gradient(135deg, var(--bg-card) 0%, #0e182c 100%);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(56,189,248,0.12);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    }
+    .feature-card .card-glow {
+      position: absolute; top: -20px; right: -20px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,0.06) 0%, transparent 70%);
+    }
+    .feature-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .feature-card h3 {
+      font-size: 1rem; font-weight: 600;
+      margin-bottom: 8px; color: var(--text-primary);
+    }
+    .feature-card p {
+      font-size: 0.85rem; line-height: 1.65;
+      color: var(--text-secondary);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex; gap: 4px;
+      padding: 4px; border-radius: 14px;
+      background: rgba(10,18,33,0.8);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 16px;
+      border-radius: 10px; border: none;
+      font-size: 13px; font-weight: 500;
+      font-family: var(--font-body);
+      color: var(--text-muted);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: #fff;
+    }
+
+    /* Install panel */
+    .install-panel {
+      border-radius: 16px; padding: 28px;
+      background: linear-gradient(135deg, #080f1e 0%, #0c1a30 100%);
+      border: 1px solid var(--border-subtle);
+    }
+    .step {
+      display: flex; gap: 16px; align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #0ea5e9, #0369a1);
+    }
+    .step p {
+      font-size: 0.875rem;
+      color: #b0c4de;
+      line-height: 1.7;
+      padding-top: 4px;
+    }
+    .step code {
+      padding: 2px 8px; border-radius: 6px;
+      font-size: 12px; font-family: var(--font-mono);
+      background: var(--accent-sky-dim);
+      color: #7dd3fc;
+      border: 1px solid rgba(56,189,248,0.1);
+    }
+    .step strong { color: #38bdf8; }
+    .info-text {
+      font-size: 0.875rem;
+      color: #b0c4de;
+      line-height: 1.75;
+    }
+    .info-text strong.warn { color: var(--accent-amber); }
+    .info-text code {
+      padding: 2px 8px; border-radius: 6px;
+      font-size: 12px; font-family: var(--font-mono);
+      background: var(--accent-sky-dim);
+      color: #7dd3fc;
+      border: 1px solid rgba(56,189,248,0.1);
+    }
+
+    /* Code viewer */
+    .code-viewer {
+      border-radius: 16px; overflow: hidden;
+      background: #060c18;
+      border: 1px solid var(--border-subtle);
+    }
+    .code-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 16px;
+      background: rgba(10,18,33,0.9);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .code-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+    }
+    .code-dot.red { background: #ef4444; }
+    .code-dot.yellow { background: #eab308; }
+    .code-dot.green { background: #22c55e; }
+    .code-tabs {
+      display: flex; gap: 2px; margin-left: 12px;
+    }
+    .code-tab {
+      padding: 4px 12px; border-radius: 6px; border: none;
+      font-size: 12px; font-family: var(--font-mono);
+      color: var(--text-muted); background: transparent;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .code-tab.active {
+      background: rgba(14,165,233,0.12);
+      color: #7dd3fc;
+    }
+    .code-body {
+      padding: 20px;
+      overflow: auto;
+      max-height: 420px;
+    }
+    .code-body pre {
+      font-size: 12px;
+      line-height: 1.65;
+      font-family: var(--font-mono);
+      color: #8faabe;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* How it works */
+    .how-it-works {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .how-step {
+      display: flex; gap: 20px; align-items: flex-start;
+      padding: 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--bg-card) 0%, #0e182c 100%);
+      border: 1px solid var(--border-subtle);
+    }
+    .how-step-num {
+      flex-shrink: 0;
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #0ea5e9, #0369a1);
+    }
+    .how-step h3 {
+      font-size: 0.95rem; font-weight: 600;
+      margin-bottom: 4px; color: var(--text-primary);
+    }
+    .how-step p {
+      font-size: 0.85rem; line-height: 1.65;
+      color: var(--text-secondary);
+    }
+
+    /* Privacy callout */
+    .privacy-box {
+      border-radius: 16px; padding: 28px;
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.04) 0%, rgba(14, 165, 233, 0.03) 100%);
+      border: 1px solid rgba(52, 211, 153, 0.12);
+    }
+    .privacy-box h3 {
+      font-size: 1rem; font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--accent-green);
+    }
+    .privacy-list {
+      list-style: none; padding: 0;
+    }
+    .privacy-list li {
+      font-size: 0.875rem; line-height: 1.8;
+      color: var(--text-secondary);
+      padding-left: 24px;
+      position: relative;
+    }
+    .privacy-list li::before {
+      content: '\2713';
+      position: absolute; left: 0;
+      color: var(--accent-green);
+      font-weight: 700;
+    }
+
+    /* Bottom CTA */
+    .bottom-cta {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(14,165,233,0.05) 0%, rgba(124,58,237,0.03) 100%);
+      border: 1px solid var(--border-subtle);
+    }
+    .bottom-cta p.label {
+      font-weight: 600; font-size: 1.1rem;
+      margin-bottom: 4px;
+    }
+    .bottom-cta p.sub {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 3rem;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      .page-wrap { padding: 2rem 1rem 3rem; }
+      .hero h1 { font-size: 2rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .tab-bar { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="ambient">
+  <div class="ambient-blob blob-1"></div>
+  <div class="ambient-blob blob-2"></div>
+  <div class="ambient-blob blob-3"></div>
+</div>
+<div class="noise"></div>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+// ─── Components ────────────────────────────────────────────
+
+const FEATURES = [
+  { icon: "\u{1F9E0}", title: "Claude Vision Analysis", desc: "Screenshots your LinkedIn feed and sends it to Claude, who identifies ads by their visual appearance \u2014 even when the DOM is obfuscated." },
+  { icon: "\u{1F5B1}\uFE0F", title: "Teach by Clicking", desc: "Ctrl+click any element to mark it as an ad. Claude generalizes your selection into a reusable rule that catches similar ads everywhere." },
+  { icon: "\u{1FA79}", title: "Self-Healing", desc: "After removing ads, the extension re-checks the page. If something broke, it automatically reverts the bad rule \u2014 no manual fixing needed." },
+  { icon: "\u{26A1}", title: "Instant Static Rules", desc: "Known ad patterns (iframes, banners, 'Promoted' labels) are nuked instantly on page load \u2014 before Claude even connects." },
+  { icon: "\u{1F4DA}", title: "Learns Over Time", desc: "Rules persist across sessions with hit tracking, confidence scores, and automatic pruning. User-taught rules get top priority." },
+  { icon: "\u{1F512}", title: "Your Key, Your Browser", desc: "Your Claude API key is stored locally in chrome.storage and only ever sent directly to Anthropic. No middleman server, no proxying, no telemetry." },
+  { icon: "\u{1F4D0}", title: "Wide Feed Mode", desc: "Toggle to hide both sidebars and center your feed at a comfortable reading width. Flip it on or off from the popup menu." },
+];
+
+const HOW_STEPS = [
+  { title: "Install & enter your API key", desc: "Load the extension in Chrome, open the popup, and paste your Claude API key. It's stored in chrome.storage.local and never touches any server except api.anthropic.com." },
+  { title: "Navigate to LinkedIn", desc: "The extension activates only on linkedin.com. Built-in rules immediately hide known ad patterns (ad iframes, banners, 'Promoted' labels). No API call needed for these." },
+  { title: "Claude scans the page", desc: "After the page settles, the extension screenshots your viewport and captures a DOM snapshot. Both are sent to Claude, who identifies promotional content and returns CSS selectors to hide them." },
+  { title: "Teach it what you see", desc: "Ctrl+click any element Claude missed. The extension sends the element context to Claude, who generalizes it into a rule that catches similar ads across your feed." },
+  { title: "It monitors itself", desc: "After applying rules, the extension re-screenshots the page and checks for breakage. If Claude detects a broken layout, it automatically reverts the problematic rule." },
+];
+
+function FeatureCard({ icon, title, desc, index }) {
+  return (
+    <div className={`feature-card fade-up stagger-${index + 1}`}>
+      <div className="card-glow" />
+      <div className="icon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{desc}</p>
+    </div>
+  );
+}
+
+function HowItWorks() {
+  return (
+    <div className="how-it-works">
+      {HOW_STEPS.map((s, i) => (
+        <div className="how-step" key={i}>
+          <div className="how-step-num">{i + 1}</div>
+          <div>
+            <h3>{s.title}</h3>
+            <p>{s.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OSTabs() {
+  const [tab, setTab] = useState("chrome");
+
+  return (
+    <div>
+      <div className="tab-bar">
+        {[
+          { id: "chrome",  label: "Chrome / Edge" },
+          { id: "mac",     label: "macOS Tips" },
+          { id: "windows", label: "Windows Tips" },
+        ].map(t => (
+          <button
+            key={t.id}
+            className={`tab-btn ${tab === t.id ? "active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="install-panel fade-in">
+        {tab === "chrome" && (
+          <div>
+            {[
+              { n: "1", text: <span>Download the <strong>.zip</strong> file and unzip it</span> },
+              { n: "2", text: <span>Navigate to <code>chrome://extensions</code> in your browser</span> },
+              { n: "3", text: <span>Toggle <strong>Developer mode</strong> on (top-right corner)</span> },
+              { n: "4", text: <span>Click <strong>Load unpacked</strong> and select the unzipped folder</span> },
+              { n: "5", text: <span>Open the extension popup and <strong>enter your Claude API key</strong></span> },
+              { n: "6", text: <span>Visit LinkedIn &mdash; ads start disappearing within seconds</span> },
+            ].map(s => (
+              <div className="step" key={s.n}>
+                <div className="step-num">{s.n}</div>
+                <p>{s.text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === "mac" && (
+          <div>
+            <p className="info-text">After downloading, macOS may save the file to <code>~/Downloads</code>. Double-click the .zip to extract &mdash; Finder creates the folder automatically.</p>
+            <br />
+            <p className="info-text">If you see a <strong className="warn">"not from an identified developer"</strong> warning &mdash; that only applies to .app files, not Chrome extensions loaded via Developer mode.</p>
+            <br />
+            <p className="info-text">Works with Chrome, Brave, Arc, Edge, and any Chromium-based browser on macOS.</p>
+          </div>
+        )}
+        {tab === "windows" && (
+          <div>
+            <p className="info-text">After downloading, right-click the .zip in File Explorer and choose <code>Extract All...</code> to unzip.</p>
+            <br />
+            <p className="info-text">Windows may show a <strong className="warn">SmartScreen</strong> warning &mdash; this is normal for files not from the Microsoft Store. The zip itself doesn't execute any code.</p>
+            <br />
+            <p className="info-text">Works with Chrome, Brave, Edge, and any Chromium-based browser on Windows.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrivacySection() {
+  return (
+    <div className="privacy-box">
+      <h3>Privacy &amp; Your API Key</h3>
+      <ul className="privacy-list">
+        <li>Your Claude API key is stored in <strong>chrome.storage.local</strong> &mdash; it never leaves your browser except when sent directly to api.anthropic.com</li>
+        <li>There is no backend server, no proxy, no middleman. API calls go straight from your browser to Anthropic</li>
+        <li>No data is collected, no analytics, no telemetry. The extension only runs on linkedin.com</li>
+        <li>Screenshots are sent to Claude for analysis and are not stored anywhere &mdash; they exist only for the duration of the API call</li>
+        <li>All learned rules are stored locally in your browser. Nothing is synced to any cloud service</li>
+        <li>You can clear your API key and all data at any time using the Full Reset button in the popup</li>
+      </ul>
+    </div>
+  );
+}
+
+// ─── App ───────────────────────────────────────────────────
+function App() {
+  return (
+    <div className="page-wrap">
+      {/* Hero */}
+      <div className="hero fade-up">
+        <div className="badge">
+          <span className="badge-dot" />
+          Chrome Extension &middot; Powered by Claude
+        </div>
+        <h1>
+          LinkedIn <span className="gradient-text">Ad Remover</span>
+        </h1>
+        <p>
+          An AI-powered Chrome extension that sees your LinkedIn feed the way you do.
+          Claude identifies ads visually, learns from your clicks, and self-heals if it breaks anything.
+        </p>
+        <a className="btn btn-primary" href="https://github.com/kordless/linkedin-ad-remover" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Extension
+        </a>
+      </div>
+
+      {/* Features */}
+      <div className="section">
+        <h2>Features</h2>
+        <div className="subtitle">Not just another ad blocker &mdash; it adapts to LinkedIn's constantly changing DOM</div>
+        <div className="features-grid">
+          {FEATURES.map((f, i) => <FeatureCard key={f.title} {...f} index={i} />)}
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <div className="section fade-up stagger-5">
+        <h2>How It Works</h2>
+        <div className="subtitle">Bring your own Claude API key. Everything runs locally in your browser.</div>
+        <HowItWorks />
+      </div>
+
+      {/* Privacy */}
+      <div className="section fade-up stagger-5">
+        <h2>Privacy</h2>
+        <div className="subtitle">Your data stays on your machine</div>
+        <PrivacySection />
+      </div>
+
+      {/* Install */}
+      <div className="section fade-up stagger-5">
+        <h2>Installation</h2>
+        <div className="subtitle">Works on any Chromium browser &mdash; Chrome, Edge, Brave, Arc</div>
+        <OSTabs />
+      </div>
+
+      {/* What you need */}
+      <div className="section fade-up stagger-6">
+        <h2>Requirements</h2>
+        <div className="subtitle">Two things, that's it</div>
+        <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
+          <div className="feature-card" style={{flex: '1 1 240px'}}>
+            <div className="icon">{"\u{1F310}"}</div>
+            <h3>A Chromium Browser</h3>
+            <p>Chrome, Edge, Brave, Arc, or any browser that supports Manifest V3 extensions.</p>
+          </div>
+          <div className="feature-card" style={{flex: '1 1 240px'}}>
+            <div className="icon">{"\u{1F511}"}</div>
+            <h3>A Claude API Key</h3>
+            <p>Get one at console.anthropic.com. The extension uses Claude's vision capability to analyze your feed. Typical cost: a few cents per browsing session.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom CTA */}
+      <div className="bottom-cta fade-up stagger-6">
+        <p className="label">Ready to clean up LinkedIn?</p>
+        <p className="sub">Bring your own API key. No account needed, no tracking, no middleman.</p>
+        <a className="btn btn-primary" href="https://github.com/kordless/linkedin-ad-remover" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Extension
+        </a>
+      </div>
+
+      <div className="footer">
+        Not affiliated with LinkedIn or Anthropic
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

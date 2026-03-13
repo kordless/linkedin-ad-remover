@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn Ad Remover</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LinkedIn Ad Remover</h1>
+      <div id="status" class="status disconnected">
+        <span class="dot"></span>
+        <span id="status-text">Not connected</span>
+      </div>
+    </header>
+
+    <section class="api-key-section">
+      <label for="api-key">Claude API Key</label>
+      <div class="input-row">
+        <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off">
+        <button id="save-key" class="btn btn-primary">Save</button>
+        <button id="clear-key" class="btn btn-danger" title="Clear API key">X</button>
+      </div>
+    </section>
+
+    <section class="toggle-section">
+      <label class="toggle-label">
+        <span>Extension Enabled</span>
+        <input type="checkbox" id="enabled-toggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+      <label class="toggle-label" style="margin-top: 8px">
+        <span>Wide Feed</span>
+        <input type="checkbox" id="wide-feed-toggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </section>
+
+    <section class="stats-section">
+      <h2>Stats</h2>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-value" id="rules-count">0</span>
+          <span class="stat-label">Rules Learned</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="removed-count">0</span>
+          <span class="stat-label">Removed</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="user-rules">0</span>
+          <span class="stat-label">User Rules</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="api-cost">$0.00</span>
+          <span class="stat-label">Est. Cost</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="actions-section">
+      <button id="rescan-btn" class="btn btn-full">Re-scan Page</button>
+    </section>
+
+    <section class="rules-section" id="rules-section" style="display:none">
+      <div class="section-header">
+        <h2>Rules</h2>
+        <button id="clear-all-rules" class="btn btn-small">Clear All</button>
+      </div>
+      <div id="rules-list"></div>
+    </section>
+
+    <section class="errors-section" id="errors-section" style="display:none">
+      <div class="section-header">
+        <h2>Recent Activity</h2>
+        <button id="clear-logs" class="btn btn-small">Clear</button>
+      </div>
+      <div id="errors-list"></div>
+    </section>
+
+    <section class="reset-section">
+      <button id="full-reset" class="btn btn-full btn-reset">Full Reset</button>
+    </section>
+
+    <footer>
+      <span class="hint">Ctrl+click any element on LinkedIn to teach the AI</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
