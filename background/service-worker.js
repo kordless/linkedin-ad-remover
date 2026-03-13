@@ -321,8 +321,8 @@ async function handleSummarizePage(tabId, maxScrolls = 10) {
     // Build Claude message with screenshots + text
     const content = [];
 
-    // Include up to 8 screenshots for visual context
-    const screenshotsToSend = screenshots.slice(0, 8);
+    // Include up to 4 screenshots for visual context (more = huge payload = timeouts)
+    const screenshotsToSend = screenshots.slice(0, 4);
     for (const ss of screenshotsToSend) {
       content.push({
         type: 'image',
@@ -377,12 +377,9 @@ Format the output as clean HTML that can be displayed in a browser tab. Use a da
     // Clean up if Claude wrapped in code fences
     html = html.replace(/^```html?\n?/i, '').replace(/\n?```$/i, '').trim();
 
-    // Open summary in a new tab
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    // Blob URLs don't work from service workers, use a data URL instead
-    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-    await chrome.tabs.create({ url: dataUrl });
+    // Store summary and open viewer page (data URLs have ~2MB limit, so use storage)
+    await chrome.storage.local.set({ feed_summary: html });
+    await chrome.tabs.create({ url: chrome.runtime.getURL('summary/summary.html') });
 
     broadcastToPopup({ type: 'SUM_DONE' });
 
