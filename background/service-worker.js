@@ -48,7 +48,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
 
     case 'SUMMARIZE_PAGE':
-      handleSummarizePage(message.tabId);
+      handleSummarizePage(message.tabId, message.maxScrolls || 10);
       sendResponse({ ack: true });
       break;
   }
@@ -257,7 +257,7 @@ async function handleGetAllStats(sendResponse) {
 }
 
 // ── Summarize Page ────────────────────────────────────────────
-async function handleSummarizePage(tabId) {
+async function handleSummarizePage(tabId, maxScrolls = 10) {
   const apiKey = await Storage.getApiKey();
   if (!apiKey) {
     broadcastToPopup({ type: 'SUM_ERROR', error: 'No API key set' });
@@ -265,7 +265,7 @@ async function handleSummarizePage(tabId) {
   }
 
   try {
-    const MAX_SCROLLS = 25;
+    const MAX_SCROLLS = maxScrolls;
     const SCREENSHOT_EVERY = 3; // take screenshot every 3rd scroll
     const screenshots = [];
     const allPosts = [];

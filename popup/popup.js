@@ -121,6 +121,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Summarize ──────────────────────────────────────────────
   const sumBtn = document.getElementById('summarize-btn');
   const sumStatus = document.getElementById('sum-status');
+  const scrollDepth = document.getElementById('scroll-depth');
+  const depthLabel = document.getElementById('depth-label');
+
+  scrollDepth.addEventListener('input', () => {
+    depthLabel.textContent = scrollDepth.value;
+  });
 
   sumBtn.addEventListener('click', async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -160,7 +166,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     chrome.runtime.sendMessage({
       type: 'SUMMARIZE_PAGE',
-      tabId: tabs[0].id
+      tabId: tabs[0].id,
+      maxScrolls: parseInt(scrollDepth.value, 10)
     });
   });
 

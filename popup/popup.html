@@ -62,7 +62,11 @@
 
     <section class="actions-section">
       <button id="rescan-btn" class="btn btn-full">Re-scan Page</button>
-      <button id="summarize-btn" class="btn btn-full btn-sum" style="margin-top:6px">Sum</button>
+      <div class="sum-row" style="margin-top:6px">
+        <button id="summarize-btn" class="btn btn-sum">Sum</button>
+        <input type="range" id="scroll-depth" min="1" max="25" value="10" class="depth-slider">
+        <span id="depth-label" class="depth-label">10</span>
+      </div>
       <div id="sum-status" class="sum-status" style="display:none"></div>
     </section>
 
