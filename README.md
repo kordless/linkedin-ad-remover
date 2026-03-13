@@ -23,13 +23,14 @@ Your Claude API key is stored in `chrome.storage.local`. It never leaves your br
 ## Install
 
 1. Download the latest **Source code (zip)** from [Releases](https://github.com/kordless/linkedin-ad-remover/releases)
-2. Unzip it — you'll get a folder called `linkedin-ad-remover-1.0` (or similar)
-3. Open Chrome (or Edge, Brave, Arc) and go to `chrome://extensions`
-4. Toggle **Developer mode** on (top-right corner)
-5. Click **Load unpacked** and select the unzipped folder
-6. Click the extension icon in your toolbar to open the popup
-7. Paste your Claude API key and click **Save**
-8. Navigate to [linkedin.com](https://www.linkedin.com) — ads start disappearing within a few seconds
+2. Unzip it — you'll get a folder like `linkedin-ad-remover-1.0`
+3. **Important:** Open that folder, then open the inner folder with the same name — you need the one that contains `manifest.json`, not the outer wrapper. GitHub's source zips nest the project inside two layers of folders.
+4. Open Chrome (or Edge, Brave, Arc) and go to `chrome://extensions`
+5. Toggle **Developer mode** on (top-right corner)
+6. Click **Load unpacked** and select the **inner folder** (the one with `manifest.json` in it)
+7. Click the extension icon in your toolbar to open the popup
+8. Paste your Claude API key and click **Save**
+9. Navigate to [linkedin.com](https://www.linkedin.com) — ads start disappearing within a few seconds
 
 ### Getting a Claude API Key
 
@@ -53,7 +54,7 @@ Once installed and connected, the extension works automatically:
 
 ### Updating
 
-When a new release is available, download the new zip from [Releases](https://github.com/kordless/linkedin-ad-remover/releases), unzip it, and click the reload button on `chrome://extensions`. Your saved rules and API key persist in Chrome's storage — they're not inside the extension folder.
+When a new release is available, download the new zip from [Releases](https://github.com/kordless/linkedin-ad-remover/releases), unzip it, navigate into the inner folder (the one with `manifest.json`), and click the reload button on `chrome://extensions`. Your saved rules and API key persist in Chrome's storage — they're not inside the extension folder.
 
 ## Requirements
 
