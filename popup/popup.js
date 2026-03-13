@@ -130,10 +130,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   sumBtn.addEventListener('click', async () => {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs[0]?.url?.includes('linkedin.com')) {
+    const tabUrl = tabs[0]?.url || '';
+    if (!tabUrl.includes('linkedin.com')) {
       sumStatus.style.display = 'block';
       sumStatus.textContent = 'Navigate to LinkedIn first';
       setTimeout(() => { sumStatus.style.display = 'none'; }, 2000);
+      return;
+    }
+    // Only allow summarizing the main feed, not notifications/messaging/etc
+    const feedPath = new URL(tabUrl).pathname;
+    if (feedPath !== '/' && feedPath !== '/feed/' && !feedPath.startsWith('/feed')) {
+      sumStatus.style.display = 'block';
+      sumStatus.textContent = 'Navigate to your main feed to summarize';
+      setTimeout(() => { sumStatus.style.display = 'none'; }, 3000);
       return;
     }
 
