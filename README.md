@@ -22,18 +22,43 @@ Your Claude API key is stored in `chrome.storage.local`. It never leaves your br
 
 ## Install
 
-1. Clone or download this repo
-2. Go to `chrome://extensions` and enable Developer mode
-3. Click **Load unpacked** and select this folder
-4. Open the extension popup and enter your Claude API key
-5. Navigate to LinkedIn
+1. Download the latest **Source code (zip)** from [Releases](https://github.com/kordless/linkedin-ad-remover/releases)
+2. Unzip it — you'll get a folder called `linkedin-ad-remover-1.0` (or similar)
+3. Open Chrome (or Edge, Brave, Arc) and go to `chrome://extensions`
+4. Toggle **Developer mode** on (top-right corner)
+5. Click **Load unpacked** and select the unzipped folder
+6. Click the extension icon in your toolbar to open the popup
+7. Paste your Claude API key and click **Save**
+8. Navigate to [linkedin.com](https://www.linkedin.com) — ads start disappearing within a few seconds
+
+### Getting a Claude API Key
+
+1. Go to [console.anthropic.com](https://console.anthropic.com) and create an account (or sign in)
+2. Navigate to **API Keys** and click **Create Key**
+3. Copy the key (starts with `sk-ant-...`)
+4. Paste it into the extension popup
+
+Your key is stored locally in your browser and only ever sent to Anthropic's API. Typical cost is a few cents per browsing session.
+
+### Using the Extension
+
+Once installed and connected, the extension works automatically:
+
+- **On page load** — built-in rules instantly hide known ad patterns (iframes, banners, "Promoted" labels). Then Claude scans the viewport and creates additional rules for anything the static rules missed.
+- **Ctrl+click** — see an ad Claude didn't catch? Hold Ctrl and click it. The element flashes red, and Claude generalizes your click into a reusable rule. You'll see a toast: "Element marked — Claude is learning..."
+- **Undo** — open the popup to see all active rules. Click **Undo** next to any rule to restore the hidden element. Useful for accidental clicks or if you want to peek at what was removed.
+- **Wide Feed** — toggle in the popup to hide both sidebars and center your feed at a comfortable reading width.
+- **Re-scan** — hit the Re-scan button in the popup to have Claude re-analyze the current page.
+- **Full Reset** — clears all learned rules, stats, and errors. Your API key is preserved.
+
+### Updating
+
+When a new release is available, download the new zip from [Releases](https://github.com/kordless/linkedin-ad-remover/releases), unzip it, and click the reload button on `chrome://extensions`. Your saved rules and API key persist in Chrome's storage — they're not inside the extension folder.
 
 ## Requirements
 
 - A Chromium browser (Chrome, Edge, Brave, Arc)
 - A Claude API key from [console.anthropic.com](https://console.anthropic.com)
-
-Typical cost: a few cents per browsing session.
 
 ## Features
 

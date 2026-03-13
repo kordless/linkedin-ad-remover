@@ -530,12 +530,13 @@ function OSTabs() {
         {tab === "chrome" && (
           <div>
             {[
-              { n: "1", text: <span>Download the <strong>.zip</strong> file and unzip it</span> },
+              { n: "1", text: <span>Download the <strong>Source code (zip)</strong> from the <a href="https://github.com/kordless/linkedin-ad-remover/releases" target="_blank" rel="noopener" style={{color: '#38bdf8'}}>Releases page</a> and unzip it</span> },
               { n: "2", text: <span>Navigate to <code>chrome://extensions</code> in your browser</span> },
               { n: "3", text: <span>Toggle <strong>Developer mode</strong> on (top-right corner)</span> },
               { n: "4", text: <span>Click <strong>Load unpacked</strong> and select the unzipped folder</span> },
-              { n: "5", text: <span>Open the extension popup and <strong>enter your Claude API key</strong></span> },
+              { n: "5", text: <span>Click the extension icon in your toolbar, paste your <strong>Claude API key</strong> and click Save</span> },
               { n: "6", text: <span>Visit LinkedIn &mdash; ads start disappearing within seconds</span> },
+              { n: "7", text: <span>See an ad Claude missed? <strong>Ctrl+click</strong> it to teach the extension. Open the popup to <strong>undo</strong> any rule.</span> },
             ].map(s => (
               <div className="step" key={s.n}>
                 <div className="step-num">{s.n}</div>
