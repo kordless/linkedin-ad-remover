@@ -316,27 +316,74 @@
   function getVisiblePostData() {
     const posts = [];
     const seen = new Set();
-    const candidates = document.querySelectorAll(
-      '.feed-shared-update-v2, .occludable-update, [data-urn*="activity"], [data-urn*="ugcPost"]'
-    );
+
+    // Try multiple selectors — LinkedIn changes class names frequently
+    const SELECTORS = [
+      '.feed-shared-update-v2',
+      '.occludable-update',
+      '[data-urn*="activity"]',
+      '[data-urn*="ugcPost"]',
+      '[data-id*="urn:li:activity"]',
+      '.scaffold-finite-scroll__content > div > div',  // feed container children
+      'div[data-urn]',
+    ];
+
+    let candidates = [];
+    for (const sel of SELECTORS) {
+      try {
+        const found = document.querySelectorAll(sel);
+        if (found.length > 0) {
+          candidates = found;
+          break;
+        }
+      } catch (e) { /* skip invalid selectors */ }
+    }
+
+    // Fallback: walk the main feed area and find large content blocks
+    if (candidates.length === 0) {
+      const mainFeed = document.querySelector(
+        'main, [role="main"], .scaffold-layout__main, .scaffold-finite-scroll'
+      );
+      if (mainFeed) {
+        // Grab direct children or large divs that look like posts
+        const divs = mainFeed.querySelectorAll(':scope > div > div, :scope > div > li, :scope > ul > li');
+        candidates = Array.from(divs).filter(el => {
+          const text = (el.textContent || '').trim();
+          return text.length > 50 && el.offsetHeight > 100;
+        });
+      }
+    }
 
     candidates.forEach(post => {
       // Skip hidden/removed posts
       if (post.style.display === 'none' || post.dataset.adRemoverHidden) return;
+      if (post.offsetHeight === 0) return;
 
       const text = (post.textContent || '').trim().slice(0, 1000);
-      if (!text || text.length < 20) return;
+      if (!text || text.length < 30) return;
 
       // Deduplicate by first 100 chars
       const key = text.slice(0, 100);
       if (seen.has(key)) return;
       seen.add(key);
 
-      // Extract author
-      const authorEl = post.querySelector(
-        '.feed-shared-actor__name, .update-components-actor__name'
-      );
-      const author = authorEl ? authorEl.textContent.trim() : '';
+      // Extract author — try multiple selectors
+      const AUTHOR_SELECTORS = [
+        '.feed-shared-actor__name',
+        '.update-components-actor__name',
+        '[data-control-name="actor"] span',
+        'a[data-control-name="actor_container"] span',
+        '.feed-shared-actor__title span',
+        'span.feed-shared-actor__name',
+      ];
+      let author = '';
+      for (const sel of AUTHOR_SELECTORS) {
+        const el = post.querySelector(sel);
+        if (el) {
+          author = el.textContent.trim().split('\n')[0].trim();
+          if (author) break;
+        }
+      }
 
       // Extract links
       const links = [];
@@ -353,11 +400,31 @@
         }
       });
 
-      // Extract engagement
-      const likeEl = post.querySelector('.social-details-social-counts__reactions-count');
-      const commentEl = post.querySelector('.social-details-social-counts__comments');
-      const likes = likeEl ? likeEl.textContent.trim() : '';
-      const comments = commentEl ? commentEl.textContent.trim() : '';
+      // Extract engagement — try multiple selectors
+      const ENGAGE_SELECTORS = {
+        likes: [
+          '.social-details-social-counts__reactions-count',
+          '[data-control-name="likes_count"]',
+          'button[aria-label*="reaction"] span',
+          'span.reactions-count',
+        ],
+        comments: [
+          '.social-details-social-counts__comments',
+          '[data-control-name="comments_count"]',
+          'button[aria-label*="comment"] span',
+        ]
+      };
+
+      let likes = '';
+      for (const sel of ENGAGE_SELECTORS.likes) {
+        const el = post.querySelector(sel);
+        if (el) { likes = el.textContent.trim(); break; }
+      }
+      let comments = '';
+      for (const sel of ENGAGE_SELECTORS.comments) {
+        const el = post.querySelector(sel);
+        if (el) { comments = el.textContent.trim(); break; }
+      }
 
       posts.push({
         author,
